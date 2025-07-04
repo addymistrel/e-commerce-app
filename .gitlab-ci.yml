@@ -1,0 +1,58 @@
+image: cirrusci/flutter:stable
+
+stages:
+  - test
+  - build
+  - deploy
+
+variables:
+  FLUTTER_VERSION: "3.19.0"
+
+before_script:
+  - flutter --version
+  - flutter pub get
+
+test:
+  stage: test
+  script:
+    - flutter analyze
+    - dart test/simple_test.dart
+  only:
+    - main
+    - merge_requests
+
+build_android:
+  stage: build
+  script:
+    - flutter build apk --release
+  artifacts:
+    paths:
+      - build/app/outputs/flutter-apk/app-release.apk
+  only:
+    - main
+    - tags
+
+build_web:
+  stage: build
+  script:
+    - flutter config --enable-web
+    - flutter build web --release
+  artifacts:
+    paths:
+      - build/web
+  only:
+    - main
+    - tags
+
+deploy_firebase:
+  stage: deploy
+  image: node:latest
+  script:
+    - npm install -g firebase-tools
+    - firebase deploy --token $FIREBASE_TOKEN --project $FIREBASE_PROJECT_ID
+  only:
+    - tags
+  when: manual
+  environment:
+    name: production
+    url: https://$FIREBASE_PROJECT_ID.web.app
